@@ -1,0 +1,62 @@
+- [ ] create svg drawing of rock, paper, and scissors
+- [ ] load them into canvas, without drawing on the page
+
+- initialize the game
+- create canvas
+- set canvas width and height (500x500px?)
+- const numPlayers = 20;
+- for each player
+ - randomly choose rock paper or scissors
+ - create player array
+ - create new player
+ - randomly choose player position
+ - add player to areaSegmenter
+ - while player is too close to another player (1)
+    - re-roll random player position
+
+- on each frame:
+ - search for nearest nearby threat or prey (2) 
+ - if the threat is nearest, move away
+ - if the prey is nearest, move closer
+
+(1) collision detection:
+get playArea segments that are nearby (3)
+check if the player 
+
+(2) threat or prey detection:
+
+(3) playArea segmentation (min: 30x30 pixels)
+
+
+svg to canvas function converter
+create svg node class(1)
+parse svg node from file(2)
+
+
+
+(1) svg tree from svg file
+create class for attribute
+create class for svg node
+each node can have a list of attributes
+each node can have a arraylist of children
+the name of the node can have letters or colon (:)
+the node can be
+ - self closing (<node />)
+ - or can have children (<node> <childNode /> </node>)
+each attribute can be described by letters, colon (:), or dash (-)
+each attribute can have a value
+
+(2)
+check if it is an xml file:
+- may have an svg tag
+- may be a formatting tag <?xml ... ?> followed by an svg tag
+- an xml file can have a self-closing node
+- or a node that closes and has nothing in it
+- a node with more nodes in it
+- or a node with just text in it
+
+ignore 
+on each char:
+    - see if
+
+
