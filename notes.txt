@@ -1,4 +1,4 @@
-- [ ] create svg drawing of rock, paper, and scissors
+- [x] create svg drawing of rock, paper, and scissors
 - [ ] load them into canvas, without drawing on the page
 
 - initialize the game
