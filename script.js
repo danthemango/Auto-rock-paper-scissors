@@ -147,7 +147,7 @@ window.addEventListener('load', function() {
             this.collisionY = this.spriteY + this.spriteHeight * 0.5 + collisionOffsetY,
             this.collisionRadius = collisionRadius;
             this.speed = speed;
-            this.isPlayer = false; // DEBUG
+            this.target = null;
         }
 
         draw(ctx, dt) {
@@ -169,67 +169,64 @@ window.addEventListener('load', function() {
                     Math.PI * 2
                 );
                 ctx.save();
+
                 ctx.globalAlpha = 0.3;
-                if(this.isPlayer) {
-                    ctx.strokeStyle = 'blue';
-                }
                 ctx.stroke();
+                if(this.target != null) {
+                    ctx.beginPath()
+                    if(this.target.type == 'prey') {
+                        ctx.strokeStyle = 'purple';
+                    } else if(this.target.type == 'predator') {
+                        ctx.strokeStyle = 'blue';
+                    }
+                    ctx.moveTo(this.collisionX, this.collisionY);
+                    ctx.lineTo(this.target.entity.collisionX, this.target.entity.collisionY);
+                    ctx.stroke();
+                }
+
                 ctx.fill();
                 ctx.restore();
             }
         }
 
-        setPlayer() {
-            this.isPlayer = true;
+        setPreyTarget(entity) {
+            this.target = {
+                type: 'prey',
+                entity: entity,
+            };
+        }
+
+        setPredatorTarget(entity) {
+            this.target = {
+                type: 'predator',
+                entity: entity,
+            };
         }
 
         update(dt) {
             const prey = this.game.getNearestPrey(this);
             const predator = this.game.getNearestPredator(this);
             if(!prey && !predator) {
+                this.target = null;
                 return;
             } else if(!predator) {
                 this.moveToEntity(prey, dt);
+                this.setPreyTarget(prey, dt);
             } else if(!prey) {
                 this.moveAwayFromEntity(predator, dt);
+                this.setPredatorTarget(predator, dt);
             } else if (this.getDistance(prey) < this.getDistance(predator)) {
                 this.moveToEntity(prey, dt);
+                this.setPreyTarget(prey, dt);
             } else {
                 this.moveAwayFromEntity(predator, dt);
+                this.setPredatorTarget(predator, dt);
             }
         }
 
         // returns distance to other entity
         getDistance(entity) {
             return this.game.getCollisionDistance(this, entity);
-        }
-
-        moveUp() {
-            if(this.collisionY > this.game.margin) {
-                this.spriteY -= this.speed;
-                this.collisionY -= this.speed;
-            }
-        }
-        
-        moveDown() {
-            if(this.collisionY < this.game.height - this.game.margin) {
-                this.spriteY += this.speed;
-                this.collisionY += this.speed;
-            }
-        }
-
-        moveLeft() {
-            if(this.collisionX > this.game.margin) {
-                this.spriteX -= this.speed;
-                this.collisionX -= this.speed;
-            }
-        }
-        
-        moveRight() {
-            if(this.collisionX < this.game.width - this.game.margin) {
-                this.spriteX += this.speed;
-                this.collisionX += this.speed;
-            }
         }
 
         // returns true if the x and y position is outside of the game margin
@@ -318,18 +315,10 @@ window.addEventListener('load', function() {
             this.canvas = canvas;
             this.width = this.canvas.width;
             this.height = this.canvas.height;
+            this.margin = 30;
 
             this.initPlayers = 5; // initial num players of each type
-            this.numPlayers = 0;
-
-            this.scissors = []
-            this.rocks = [];
-            this.papers = [];
-
-            this.drawItems = [];
-            this.entities = [];
-            this.debug = true;
-            this.margin = 30;
+            this.debug = false;
 
             // number of attempts to get entity onto the screen
             // without colliding with other item
@@ -344,10 +333,8 @@ window.addEventListener('load', function() {
                     this.scissors[0].moveRight();                    
                 } else if(e.code == 'KeyW' || e.code == 'ArrowUp') {
                     this.scissors[0].moveUp();
-                }
-
-                if(e.key == ';') {
-                    this.scissors[0].moveToPrey()
+                } else if(e.code == 'KeyR') {
+                    this.restart();
                 }
 
                 if(e.key == 'd') {
@@ -375,12 +362,27 @@ window.addEventListener('load', function() {
                 }
             }
 
-            const removeDead = arr => arr.filter(entityA => !deathArr.some(entityB => entityA === entityB))
-            // remove dead entities
-            this.entities = removeDead(this.entities);
-            this.rocks = removeDead(this.rocks);
-            this.papers = removeDead(this.papers);
-            this.scissors = removeDead(this.scissors);
+            if(deathArr.length !== 0) {
+                const removeDead = arr => arr.filter(entityA => !deathArr.some(entityB => entityA === entityB))
+                // remove dead entities
+                this.entities = removeDead(this.entities);
+                this.rocks = removeDead(this.rocks);
+                this.papers = removeDead(this.papers);
+                this.scissors = removeDead(this.scissors);
+                if(this.isGameOver()) {
+                    console.log('game over');
+                }
+            }
+        }
+
+        restart() {
+            this.init();
+        }
+
+        // game over happens when entities from only one category survived
+        isGameOver() {
+            const arrs = [this.rocks, this.papers, this.scissors];
+            return arrs.filter(arr => arr.length !== 0).length <= 1;
         }
 
         // returns the loser on a collision between two entities
@@ -466,6 +468,10 @@ window.addEventListener('load', function() {
             let nearestEntity = null;
             let nearestDistance = null;
             for(let otherEntity of arr) {
+                if(otherEntity === entity) {
+                    continue;
+                }
+
                 const distance = this.getCollisionDistance(entity, otherEntity);
                 if(nearestEntity == null || distance < nearestDistance) {
                     nearestEntity = otherEntity;
@@ -503,14 +509,24 @@ window.addEventListener('load', function() {
         }
 
         init() {
-            const defaultSpeed = .03; // TODO add to main configs
-            const defaultRadius = 25;
+            this.scissors = []
+            this.rocks = [];
+            this.papers = [];
+
+            this.drawItems = [];
+            this.entities = [];
+
+            const defaultSpeed = .1; // TODO add to main configs
+            const defaultRadius = 20;
             // functions to get random X and Y positions within margin
             const getX = () => Math.random() * (this.width - this.margin*2) - this.margin;
             const getY = () => Math.random() * (this.height - this.margin*2) - this.margin;
 
             // add one of each type of player for each loop cycle
             for(let i = 0; i < this.initPlayers; i++) {
+                // make the speed a randomish value to make the game a bit interesting
+                const speed = Math.random() * .15 + .03
+
                 this.addEntityAttempt(this.scissors, () => new Entity(this, {
                     type: "scissors",
                     image: getImgFromStr(scissorImgStr),
@@ -521,7 +537,7 @@ window.addEventListener('load', function() {
                     collisionOffsetX: -45,
                     collisionOffsetY: 10,
                     collisionRadius: defaultRadius,
-                    speed: defaultSpeed,
+                    speed: speed,
                 }));
 
                 this.addEntityAttempt(this.rocks, () => new Entity(this, {
@@ -534,7 +550,7 @@ window.addEventListener('load', function() {
                     collisionOffsetX: -15,
                     collisionOffsetY: -20,
                     collisionRadius: defaultRadius,
-                    speed: defaultSpeed,
+                    speed: speed,
                 }));
 
                 this.addEntityAttempt(this.papers, () => new Entity(this, {
@@ -544,14 +560,12 @@ window.addEventListener('load', function() {
                     spriteHeight: 70,
                     initX: getX(),
                     initY: getY(),
-                    collisionRadius: 25,
                     collisionOffsetX: 0,
                     collisionOffsetY: 0,
-                    speed: defaultSpeed,
+                    collisionRadius: defaultRadius,
+                    speed: speed,
                 }));
             }
-
-            this.scissors[0].setPlayer(); // DEBUG
         }
     }
 
