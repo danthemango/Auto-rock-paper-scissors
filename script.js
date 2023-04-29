@@ -120,18 +120,34 @@ window.addEventListener('load', function() {
     ctx.lineWidth = 3;
     ctx.strokeStyle = 'red';
 
-    class Paper {
-        constructor(game) {
+    class Entity {
+        constructor(game, configs) {
+            const {
+                type,
+                image,
+                spriteWidth,
+                spriteHeight,
+                initX,
+                initY,
+                collisionRadius,
+                // difference between the collision position and sprite
+                collisionOffsetX, 
+                collisionOffsetY,
+                speed
+            } = configs;
+
             this.game = game;
-            this.image = getImgFromStr(paperImgStr);
-            this.spriteWidth = 70;
-            this.spriteHeight = 70;
-            this.spriteX = Math.random() * (this.game.width - this.game.margin*2) - this.game.margin;
-            this.spriteY = Math.random() * (this.game.height - this.game.margin*2) - this.game.margin;
-            this.collisionX = this.spriteX + this.spriteWidth * 0.5;
-            this.collisionY = this.spriteY + this.spriteHeight * 0.5;
-            this.collisionRadius = 25;
-            this.speed = 5;
+            this.type = type;
+            this.image = image;
+            this.spriteWidth = spriteWidth;
+            this.spriteHeight = spriteHeight;
+            this.spriteX = initX;
+            this.spriteY = initY;
+            this.collisionX = this.spriteX + this.spriteWidth * 0.5 + collisionOffsetX;
+            this.collisionY = this.spriteY + this.spriteHeight * 0.5 + collisionOffsetY,
+            this.collisionRadius = collisionRadius;
+            this.speed = speed;
+            this.isPlayer = false; // DEBUG
         }
 
         draw(ctx, dt) {
@@ -153,196 +169,171 @@ window.addEventListener('load', function() {
                     Math.PI * 2
                 );
                 ctx.save();
-                ctx.globalAlpha = 0.5;
+                ctx.globalAlpha = 0.3;
+                if(this.isPlayer) {
+                    ctx.strokeStyle = 'blue';
+                }
+                ctx.stroke();
                 ctx.fill();
                 ctx.restore();
-                ctx.stroke();
             }
         }
 
+        setPlayer() {
+            this.isPlayer = true;
+        }
+
         update(dt) {
-            // TODO
-        }
-
-        // returns a new target position
-        getIntention() {
-
-        }
-
-        moveUp() {
-            this.spriteY -= this.speed;
-            this.collisionY -= this.speed;
-        }
-        
-        moveDown() {
-            this.spriteY += this.speed;
-            this.collisionY += this.speed;
-        }
-
-        moveLeft() {
-            this.spriteX -= this.speed;
-            this.collisionX -= this.speed;
-        }
-        
-        moveRight() {
-            this.spriteX += this.speed;
-            this.collisionX += this.speed;
-        }
-    }
-
-    class Rock {
-        constructor(game) {
-            this.game = game;
-            this.image = getImgFromStr(rockImgStr);
-            this.spriteWidth = 100;
-            this.spriteHeight = 100;
-            this.spriteX = Math.random() * (this.game.width - this.game.margin*2) - this.game.margin;
-            this.spriteY = Math.random() * (this.game.height - this.game.margin*2) - this.game.margin;
-            this.collisionX = this.spriteX + this.spriteWidth * 0.5 - 15;
-            this.collisionY = this.spriteY + this.spriteHeight * 0.5 - 20;
-            this.collisionRadius = 25;
-            this.speed = 5;
-        }
-
-        draw(ctx, dt) {
-            ctx.drawImage(
-                this.image,
-                this.spriteX,
-                this.spriteY,
-                this.spriteWidth,
-                this.spriteHeight
-            );
-
-            if(this.game.debug) {
-                ctx.beginPath();
-                ctx.arc(
-                    this.collisionX,
-                    this.collisionY,
-                    this.collisionRadius,
-                    0,
-                    Math.PI * 2
-                );
-                ctx.save();
-                ctx.globalAlpha = 0.5;
-                ctx.fill();
-                ctx.restore();
-                ctx.stroke();
+            const prey = this.game.getNearestPrey(this);
+            const predator = this.game.getNearestPredator(this);
+            if(!prey && !predator) {
+                return;
+            } else if(!predator) {
+                this.moveToEntity(prey, dt);
+            } else if(!prey) {
+                this.moveAwayFromEntity(predator, dt);
+            } else if (this.getDistance(prey) < this.getDistance(predator)) {
+                this.moveToEntity(prey, dt);
+            } else {
+                this.moveAwayFromEntity(predator, dt);
             }
         }
 
-        update(dt) {
-            // TODO
-        }
-
-        // returns a new target position
-        getIntention() {
-
+        // returns distance to other entity
+        getDistance(entity) {
+            return this.game.getCollisionDistance(this, entity);
         }
 
         moveUp() {
-            this.spriteY -= this.speed;
-            this.collisionY -= this.speed;
+            if(this.collisionY > this.game.margin) {
+                this.spriteY -= this.speed;
+                this.collisionY -= this.speed;
+            }
         }
         
         moveDown() {
-            this.spriteY += this.speed;
-            this.collisionY += this.speed;
-        }
-
-        moveLeft() {
-            this.spriteX -= this.speed;
-            this.collisionX -= this.speed;
-        }
-        
-        moveRight() {
-            this.spriteX += this.speed;
-            this.collisionX += this.speed;
-        }
-    }
-
-    class Scissors {
-        constructor(game) {
-            this.game = game;
-            this.image = getImgFromStr(scissorImgStr);
-            this.spriteWidth = 200;
-            this.spriteHeight = 100;
-            this.spriteX = Math.random() * (this.game.width - this.game.margin*2) - this.game.margin;
-            this.spriteY = Math.random() * (this.game.height - this.game.margin*2) - this.game.margin;
-            this.collisionX = this.spriteX + this.spriteWidth * 0.5 - 45;
-            this.collisionY = this.spriteY + this.spriteHeight * 0.5 + 10;
-            this.collisionRadius = 25;
-            this.speed = 5;
-        }
-
-        draw(ctx, dt) {
-            ctx.drawImage(
-                this.image,
-                this.spriteX,
-                this.spriteY,
-                this.spriteWidth,
-                this.spriteHeight
-            );
-
-            if(this.game.debug) {
-                ctx.beginPath();
-                ctx.arc(
-                    this.collisionX,
-                    this.collisionY,
-                    this.collisionRadius,
-                    0,
-                    Math.PI * 2
-                );
-                ctx.save();
-                ctx.globalAlpha = 0.5;
-                ctx.fill();
-                ctx.restore();
-                ctx.stroke();
+            if(this.collisionY < this.game.height - this.game.margin) {
+                this.spriteY += this.speed;
+                this.collisionY += this.speed;
             }
         }
 
-        update(dt) {
-            // TODO
-        }
-
-        // returns a new target position
-        getIntention() {
-
-        }
-
-        moveUp() {
-            this.spriteY -= this.speed;
-            this.collisionY -= this.speed;
-        }
-        
-        moveDown() {
-            this.spriteY += this.speed;
-            this.collisionY += this.speed;
-        }
-
         moveLeft() {
-            this.spriteX -= this.speed;
-            this.collisionX -= this.speed;
+            if(this.collisionX > this.game.margin) {
+                this.spriteX -= this.speed;
+                this.collisionX -= this.speed;
+            }
         }
         
         moveRight() {
-            this.spriteX += this.speed;
-            this.collisionX += this.speed;
+            if(this.collisionX < this.game.width - this.game.margin) {
+                this.spriteX += this.speed;
+                this.collisionX += this.speed;
+            }
+        }
+
+        // returns true if the x and y position is outside of the game margin
+        isOutsideMargin(x, y) {
+            return x < this.game.margin 
+                || x > this.game.width - this.game.margin
+                || y < this.game.margin
+                || y > this.game.height - this.game.margin
+            ;
+        }
+
+        // returns true if that new position would collide
+        // with a friendly entity
+        collidesWithFriendly(x, y) {
+            const nearestEntity = this.getNearestEntity();
+            const dx = nearestEntity.collisionX - x;
+            const dy = nearestEntity.collisionY - y;
+            const dist = Math.hypot(dy, dx);
+            return dist <= nearestEntity.collisionRadius + this.collisionRadius;
+        }
+
+        // returns true if we can move to this new position
+        canMove(x,y) {
+            return !this.isOutsideMargin(x,y) && !this.collidesWithFriendly(x,y);
+        }
+
+        // move one increment to other entity
+        moveToEntity(entity, dt) {
+            const a = entity;
+            const b = this;
+            const dx = a.collisionX - b.collisionX;
+            const dy = a.collisionY - b.collisionY;
+            const dist = Math.hypot(dx, dy);
+            const increment = this.speed * dt;
+
+            // get normalized dx and dy, relative to our speed
+            const normDx = increment * (dx / dist);
+            const normDy = increment * (dy / dist);
+
+            // don't move if we are on the edge
+            // TODO: might get stuck in the corner
+            if(!this.isOutsideMargin(this.collisionX + normDx, this.collisionY)) {
+                this.collisionX += normDx;
+                this.spriteX += normDx;
+            }
+
+            if(!this.isOutsideMargin(this.collisionX, this.collisionY + normDy)) {
+                this.collisionY += normDy;
+                this.spriteY += normDy;
+            }
+        }
+
+        moveAwayFromEntity(entity, dt) {
+            const a = entity;
+            const b = this;
+            const dx = a.collisionX - b.collisionX;
+            const dy = a.collisionY - b.collisionY;
+            const dist = Math.hypot(dx, dy);
+            const increment = -this.speed * dt;
+
+            // get normalized dx and dy, relative to our speed
+            const normDx = increment * (dx / dist);
+            const normDy = increment * (dy / dist);
+
+            // don't move if we are on the edge
+            // TODO: might get stuck in the corner
+            if(this.canMove(this.collisionX + normDx, this.collisionY)) {
+                this.collisionX += normDx;
+                this.spriteX += normDx;
+            }
+
+            if(this.canMove(this.collisionX, this.collisionY + normDy)) {
+                this.collisionY += normDy;
+                this.spriteY += normDy;
+            }
+        }
+
+        getNearestEntity() {
+            return this.game.getNearestEntity(this);
         }
     }
 
+    // TODO game over
     class Game {
         constructor(canvas) {
             this.canvas = canvas;
             this.width = this.canvas.width;
             this.height = this.canvas.height;
+
             this.initPlayers = 5; // initial num players of each type
+            this.numPlayers = 0;
+
             this.scissors = []
             this.rocks = [];
             this.papers = [];
+
             this.drawItems = [];
-            this.updateItems = [];
+            this.entities = [];
             this.debug = true;
             this.margin = 30;
+
+            // number of attempts to get entity onto the screen
+            // without colliding with other item
+            this.attempts = 20;
 
             window.addEventListener('keydown', e => {
                 if(e.code == 'KeyA' || e.code == 'ArrowLeft') {
@@ -351,8 +342,12 @@ window.addEventListener('load', function() {
                     this.scissors[0].moveDown();                    
                 } else if(e.code == 'KeyD' || e.code == 'ArrowRight') {
                     this.scissors[0].moveRight();                    
-                } else if(e.code == 'KeyF' || e.code == 'ArrowUp') {
-                    this.scissors[0].moveUp();                    
+                } else if(e.code == 'KeyW' || e.code == 'ArrowUp') {
+                    this.scissors[0].moveUp();
+                }
+
+                if(e.key == ';') {
+                    this.scissors[0].moveToPrey()
                 }
 
                 if(e.key == 'd') {
@@ -363,31 +358,200 @@ window.addEventListener('load', function() {
 
         // dt = time since last render
         render(ctx, dt) {
-            this.updateItems.forEach(scissor => scissor.update(dt));
-            this.drawItems.forEach(scissor => scissor.draw(ctx, dt));
+            this.entities.forEach(item => item.update(dt));
+            this.entities.forEach(entity => entity.draw(ctx, dt));
+
+            const deathArr = [];
+            // check for collisions (brute force for now)
+            for(let entityA of this.entities) {
+                for(let entityB of this.entities) {
+                    if(entityA !== entityB && this.checkCollision(entityA, entityB)) {
+                        const victim = this.getVictim(entityA, entityB);
+                        if(victim != null) {
+                            console.log('death!');
+                            deathArr.push(victim);
+                        }
+                    }
+                }
+            }
+
+            const removeDead = arr => arr.filter(entityA => !deathArr.some(entityB => entityA === entityB))
+            // remove dead entities
+            this.entities = removeDead(this.entities);
+            this.rocks = removeDead(this.rocks);
+            this.papers = removeDead(this.papers);
+            this.scissors = removeDead(this.scissors);
         }
 
-        checkCollision(a, b) {
-            // TODO
+        // returns the loser on a collision between two entities
+        getVictim(a, b) {
+            if(a.type == 'scissors' && b.type == 'rock') {
+                return a;
+            } else if(a.type == 'rock' && b.type == 'paper') {
+                return a;
+            } else if(a.type == 'paper' && b.type == 'scissors') {
+                return a;
+            } else {
+                return null;
+            }
+        }
+
+        // returns true if a and b are friendly
+        isFriendly(a, b) {
+            return (a.type == 'scissors' && b.type == 'rock')
+                || (a.type == 'rock' && b.type == 'paper')
+                || (a.type == 'paper' && b.type == 'scissors')
+            ;
         }
         
-        init() {
-            for(let i = 0; i < this.initPlayers; i++) {
-                const newScissors = new Scissors(this);
-                this.scissors.push(newScissors);
-                this.drawItems.push(newScissors);
-                this.updateItems.push(newScissors);
+        // returns the distance between the center of a and b
+        getCollisionDistance(a, b) {
+            const dx = a.collisionX - b.collisionX;
+            const dy = a.collisionY - b.collisionY;
+            const dist = Math.hypot(dy, dx);
+            return dist;
+        }
 
-                const newRock = new Rock(this);
-                this.rocks.push(newRock);
-                this.drawItems.push(newRock);
-                this.updateItems.push(newRock);
+        // returns true if a collided with b
+        checkCollision(a, b) {
+            return this.getCollisionDistance(a, b) <= a.collisionRadius + b.collisionRadius;
+        }
 
-                const newPaper = new Paper(this);
-                this.papers.push(newPaper);
-                this.drawItems.push(newPaper);
-                this.updateItems.push(newPaper);
+        // returns true if entities a and b are closer than a buffer distance
+        areInsideBuffer(a, b, buffer) {
+            return this.getCollisionDistance(a, b) <= a.collisionRadius + b.collisionRadius + buffer;
+        }
+
+        // returns true if entity is outside of the page margin
+        isOutsideMargin(entity) {
+            return entity.collisionX < this.margin 
+                || entity.collisionX > this.width - this.margin
+                || entity.collisionY < this.margin
+                || entity.collisionY > this.height - this.margin
+            ;
+        }
+
+        // returns true if the new item is within a margin distance of another entity
+        isTooClose(newItem, items, buffer) {
+            for(let item of items) {
+                if(newItem === item) {
+                    continue;
+                } else if (this.areInsideBuffer(newItem, item, buffer)) {
+                    return true;
+                } else if (this.isOutsideMargin(newItem)) {
+                    return true;
+                }
             }
+        }
+
+        // creates a new entity using the createFunction
+        // and attempts to add it to the map assuming it isn't too close
+        // to any other entity
+        addEntityAttempt(entityArr, createFn) {
+            for(let i = 0; i < this.attempts; i++) {
+                const newEntity = createFn();
+                if(this.isTooClose(newEntity, this.entities, this.margin)) {
+                    continue;
+                } else {
+                    entityArr.push(newEntity);
+                    this.entities.push(newEntity);
+                    break;
+                }
+            }
+        }
+
+        // returns the nearest entity to entities in arr
+        // (TODO: could be more efficient)
+        getNearestFromArr(entity, arr) {
+            let nearestEntity = null;
+            let nearestDistance = null;
+            for(let otherEntity of arr) {
+                const distance = this.getCollisionDistance(entity, otherEntity);
+                if(nearestEntity == null || distance < nearestDistance) {
+                    nearestEntity = otherEntity;
+                    nearestDistance = distance;
+                }
+            }
+            return nearestEntity
+        }
+
+        // returns the absolute nearest entity
+        getNearestEntity(entity) {
+            return this.getNearestFromArr(entity, this.entities);
+        }
+        
+        // returns the position of the nearest predator of entity
+        getNearestPredator(entity) {
+            if(entity.type == 'scissors') {
+                return this.getNearestFromArr(entity, this.rocks);
+            } else if(entity.type == 'rock') {
+                return this.getNearestFromArr(entity, this.papers);
+            } else if(entity.type == 'paper') {
+                return this.getNearestFromArr(entity, this.scissors);
+            }
+        }
+        
+        // returns the position of the nearest prey of entity
+        getNearestPrey(entity) {
+            if(entity.type == 'scissors') {
+                return this.getNearestFromArr(entity, this.papers);
+            } else if(entity.type == 'rock') {
+                return this.getNearestFromArr(entity, this.scissors);
+            } else if(entity.type == 'paper') {
+                return this.getNearestFromArr(entity, this.rocks);
+            }
+        }
+
+        init() {
+            const defaultSpeed = .03; // TODO add to main configs
+            const defaultRadius = 25;
+            // functions to get random X and Y positions within margin
+            const getX = () => Math.random() * (this.width - this.margin*2) - this.margin;
+            const getY = () => Math.random() * (this.height - this.margin*2) - this.margin;
+
+            // add one of each type of player for each loop cycle
+            for(let i = 0; i < this.initPlayers; i++) {
+                this.addEntityAttempt(this.scissors, () => new Entity(this, {
+                    type: "scissors",
+                    image: getImgFromStr(scissorImgStr),
+                    spriteWidth: 200,
+                    spriteHeight: 100,
+                    initX: getX(),
+                    initY: getY(),
+                    collisionOffsetX: -45,
+                    collisionOffsetY: 10,
+                    collisionRadius: defaultRadius,
+                    speed: defaultSpeed,
+                }));
+
+                this.addEntityAttempt(this.rocks, () => new Entity(this, {
+                    type: "rock",
+                    image: getImgFromStr(rockImgStr),
+                    spriteWidth: 100,
+                    spriteHeight: 100,
+                    initX: getX(),
+                    initY: getY(),
+                    collisionOffsetX: -15,
+                    collisionOffsetY: -20,
+                    collisionRadius: defaultRadius,
+                    speed: defaultSpeed,
+                }));
+
+                this.addEntityAttempt(this.papers, () => new Entity(this, {
+                    type: "paper",
+                    image: getImgFromStr(paperImgStr),
+                    spriteWidth: 70,
+                    spriteHeight: 70,
+                    initX: getX(),
+                    initY: getY(),
+                    collisionRadius: 25,
+                    collisionOffsetX: 0,
+                    collisionOffsetY: 0,
+                    speed: defaultSpeed,
+                }));
+            }
+
+            this.scissors[0].setPlayer(); // DEBUG
         }
     }
 
